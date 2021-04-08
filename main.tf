@@ -17,6 +17,12 @@ variable "base_cidr_block" {
   default     = "10.1.0.0/16"
 }
 
+variable "ssh_pub_key" {
+  description = "SSH Public Key for bastion host"
+  type        = string
+  sensitive   = true
+}
+
 provider "aws" {
   profile = "default"
   region  = var.aws_region
@@ -25,7 +31,7 @@ provider "aws" {
 resource "aws_vpc" "main" {
   cidr_block = var.base_cidr_block
   tags = {
-      Name = "TF Puppet"
+    Name = "TF Puppet"
   }
 }
 
@@ -65,6 +71,17 @@ resource "aws_eip" "ngw" {
 resource "aws_nat_gateway" "ngw" {
   allocation_id = aws_eip.ngw.id
   subnet_id     = aws_subnet.app_host.id
+  tags = {
+    Name = "NAT Gateway"
+  }
 
   depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_key_pair" "local" {
+  key_name   = "bastion-key"
+  public_key = var.ssh_pub_key
+  tags = {
+    Name = "Bastion Key"
+  }
 }

@@ -23,12 +23,26 @@ variable "ssh_pub_key" {
   sensitive   = true
 }
 
+variable "ssh_internal_priv" {
+  description = "SSH private key for instance to instance communication"
+  type        = string
+}
+
+variable "ssh_internal_pub" {
+  description = "SSH public key for instance to instance communication"
+  type        = string
+}
+
+variable "user" {
+  description = "User on bastion host"
+}
+
 output "bastion_dns" {
   value = aws_instance.bastion.public_dns
 }
 
-output "bastion_ip" {
-  value = aws_instance.bastion.public_ip
+output "puppet_ip" {
+  value = aws_instance.puppet.private_ip
 }
 
 data "aws_ami" "amazon_linux_2" {
@@ -57,7 +71,7 @@ provider "aws" {
 }
 
 resource "aws_vpc" "main" {
-  cidr_block = var.base_cidr_block
+  cidr_block           = var.base_cidr_block
   enable_dns_hostnames = true
   tags = {
     Name = "TF Puppet"
@@ -68,14 +82,16 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   map_public_ip_on_launch = true
   cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, 1)
+  availability_zone       = "us-east-1a"
   tags = {
     Name = "public"
   }
 }
 
 resource "aws_subnet" "app_host" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 8, 2)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, 2)
+  availability_zone = "us-east-1a"
   tags = {
     Name = "app_host"
   }
@@ -132,6 +148,14 @@ resource "aws_key_pair" "local" {
   }
 }
 
+resource "aws_key_pair" "internal" {
+  key_name   = "tf-puppet-internal"
+  public_key = var.ssh_internal_pub
+  tags = {
+    Name = "TF Puppet Internal Key"
+  }
+}
+
 resource "aws_security_group" "allow_ssh" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
@@ -163,7 +187,21 @@ resource "aws_instance" "bastion" {
   key_name               = aws_key_pair.local.key_name
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  user_data_base64       = base64encode(templatefile("${path.module}/user_data.txt", { user = var.user, ssh_priv = base64encode(var.ssh_internal_priv), hostname = "bastion" }))
+
   tags = {
     Name = "Bastion"
+  }
+}
+
+resource "aws_instance" "puppet" {
+  ami                    = data.aws_ami.amazon_linux_2.id
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.internal.key_name
+  subnet_id              = aws_subnet.app_host.id
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+
+  tags = {
+    Name = "Puppet"
   }
 }

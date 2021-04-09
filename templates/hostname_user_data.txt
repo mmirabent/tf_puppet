@@ -2,6 +2,12 @@
 
 runcmd:
   - [ yum, update, -y ]
+  - [ rpm, -Uvh, "https://yum.puppet.com/puppet7-release-el-8.noarch.rpm" ]
+  - [ yum, install, -y, puppetserver ]
+  - [ yum, install, -y, puppet-agent ]
+  - [ sed, -ri, 's/(JAVA_ARGS=.*)-Xms2g/\1-Xms512m/', /etc/sysconfig/puppetserver ]
+  - [ sed, -ri, 's/(JAVA_ARGS=.*)-Xmx2g/\1-Xmx512m/', /etc/sysconfig/puppetserver ]
+  - [ systemctl, restart, puppetserver ]
 
 preserve_hostname: false
 hostname: ${hostname}

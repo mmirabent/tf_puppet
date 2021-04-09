@@ -20,6 +20,16 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
+data "aws_ami" "centos8" {
+  owners = ["aws-marketplace"]
+
+  # https://wiki.centos.org/Cloud/AWS#Official_and_current_CentOS_Public_Images
+  filter {
+    name   = "product-code"
+    values = ["47k9ia2igxpcce2bzo8u3kj03"]
+  }
+}
+
 resource "aws_key_pair" "local" {
   key_name   = "bastion-key"
   public_key = var.ssh_pub_key
@@ -50,8 +60,8 @@ resource "aws_instance" "bastion" {
 }
 
 resource "aws_instance" "puppet" {
-  ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = "t3.micro"
+  ami                    = data.aws_ami.centos8.id
+  instance_type          = "t2.medium"
   key_name               = aws_key_pair.internal.key_name
   subnet_id              = aws_subnet.app_host.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]

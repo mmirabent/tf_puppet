@@ -3,7 +3,7 @@
 # This has to match the local user for the bastion host. In the case of Amazon
 # Linux this is ec2-user
 locals {
-  bastion_user = "ec2-user" 
+  bastion_user = "ec2-user"
 }
 
 data "aws_ami" "amazon_linux_2" {

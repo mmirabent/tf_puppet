@@ -65,7 +65,7 @@ resource "aws_instance" "puppet" {
   key_name               = aws_key_pair.internal.key_name
   subnet_id              = aws_subnet.app_host.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
-  user_data_base64       = base64encode(templatefile("${path.module}/templates/hostname_user_data.txt", { hostname = "puppet" }))
+  user_data_base64       = base64encode(templatefile("${path.module}/templates/puppet_user_data.txt", { hostname = "puppet" }))
 
   tags = {
     Name = "Puppet"

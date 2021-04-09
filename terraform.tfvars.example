@@ -1,0 +1,13 @@
+# This public key is to connect to the bastion host
+ssh_pub_key = "Your public key here"
+
+# The following keypair is to connect to servers from the bastion host
+ssh_internal_priv = <<EOT
+-----BEGIN OPENSSH PRIVATE KEY-----
+Fill in the blanks
+-----END OPENSSH PRIVATE KEY-----
+EOT
+ssh_internal_pub  = "corresponding public key "
+
+# If using Amazon Linux 2 as the bastion host OS, this is ec2-user.
+user = "ec2-user"

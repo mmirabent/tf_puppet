@@ -17,13 +17,11 @@ variable "ssh_pub_key" {
 variable "ssh_internal_priv" {
   description = "SSH private key for instance to instance communication"
   type        = string
+  sensitive   = true
 }
 
 variable "ssh_internal_pub" {
   description = "SSH public key for instance to instance communication"
   type        = string
-}
-
-variable "user" {
-  description = "User on bastion host"
+  sensitive   = true
 }

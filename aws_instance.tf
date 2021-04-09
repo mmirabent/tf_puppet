@@ -1,5 +1,11 @@
 # EC2 Resources
 
+# This has to match the local user for the bastion host. In the case of Amazon
+# Linux this is ec2-user
+locals {
+  bastion_user = "ec2-user" 
+}
+
 data "aws_ami" "amazon_linux_2" {
   most_recent = true
   owners      = ["amazon"]
@@ -30,7 +36,7 @@ data "aws_ami" "centos8" {
   }
 }
 
-resource "aws_key_pair" "local" {
+resource "aws_key_pair" "bastion" {
   key_name   = "bastion-key"
   public_key = var.ssh_pub_key
   tags = {
@@ -49,10 +55,10 @@ resource "aws_key_pair" "internal" {
 resource "aws_instance" "bastion" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.local.key_name
+  key_name               = aws_key_pair.bastion.key_name
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
-  user_data_base64       = base64encode(templatefile("${path.module}/templates/bastion_user_data.txt", { user = var.user, ssh_priv = base64encode(var.ssh_internal_priv), hostname = "bastion" }))
+  user_data_base64       = base64encode(templatefile("${path.module}/templates/bastion_user_data.txt", { user = local.bastion_user, ssh_priv = base64encode(var.ssh_internal_priv), hostname = "bastion" }))
 
   tags = {
     Name = "Bastion"

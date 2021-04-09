@@ -36,6 +36,33 @@ data "aws_ami" "centos8" {
   }
 }
 
+data "cloudinit_config" "bastion" {
+  part {
+    content_type = "text/cloud-config"
+    content = <<-EOT
+      preserve_hostname: false
+      hostname: bastion
+      fqdn: bastion.local
+      manage_etc_hosts: true
+
+      write_files:
+        - encoding: b64
+          content: "${base64encode(var.ssh_internal_priv)}"
+          path: "/run/ssh_tmp/id_rsa"
+          permissions: "0600"
+    EOT
+  }
+  
+  part {
+    content_type = "text/x-shellscript"
+    content = <<-EOT
+      yum update -y
+      mv "/run/ssh_tmp/id_rsa" "/home/${local.bastion_user}/.ssh/id_rsa"
+      chown -v "${local.bastion_user}:${local.bastion_user}" "/home/${local.bastion_user}/.ssh/id_rsa"
+    EOT
+  }
+}
+
 resource "aws_key_pair" "bastion" {
   key_name   = "bastion-key"
   public_key = var.ssh_pub_key
@@ -58,7 +85,7 @@ resource "aws_instance" "bastion" {
   key_name               = aws_key_pair.bastion.key_name
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
-  user_data_base64       = base64encode(templatefile("${path.module}/templates/bastion_user_data.txt", { user = local.bastion_user, ssh_priv = base64encode(var.ssh_internal_priv), hostname = "bastion" }))
+  user_data_base64       = data.cloudinit_config.bastion.rendered
 
   tags = {
     Name = "Bastion"

@@ -14,14 +14,6 @@ variable "ssh_pub_key" {
   sensitive   = true
 }
 
-variable "ssh_internal_priv" {
-  description = "SSH private key for instance to instance communication"
-  type        = string
-  sensitive   = true
-}
-
-variable "ssh_internal_pub" {
-  description = "SSH public key for instance to instance communication"
-  type        = string
-  sensitive   = true
+variable "ec2_iam_role" {
+  description = "IAM Role for EC2 instances, must include S3 access"
 }

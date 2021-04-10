@@ -5,7 +5,7 @@ terraform {
       version = "~> 3.27"
     }
     cloudinit = {
-      source = "hashicorp/cloudinit"
+      source  = "hashicorp/cloudinit"
       version = "~> 2.2"
     }
   }

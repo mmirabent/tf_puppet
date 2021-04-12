@@ -45,27 +45,17 @@ data "cloudinit_config" "bastion" {
       fqdn: bastion.local
       manage_etc_hosts: true
     EOT
-
-    /*write_files:
-        - encoding: b64
-          content: "${base64encode(var.ssh_internal_priv)}"
-          path: "/run/ssh_tmp/id_rsa"
-          permissions: "0600"
-    EOT*/
   }
 
   part {
     content_type = "text/x-shellscript"
     content      = <<-EOT
       su - ec2-user -c 'yes y | ssh-keygen -q -t rsa -N "" -f ~/.ssh/id_rsa'
-      export KEY_PAIR_ID=$(aws ec2 import-key-pair --region "${var.aws_region}" --key-name "internal" --public-key-material fileb://~ec2-user/.ssh/id_rsa.pub --query KeyPairId)
+      export KEY_PAIR_ID=$(aws ec2 import-key-pair --region "${var.aws_region}" --key-name "tf_puppet-internal" --public-key-material fileb://~ec2-user/.ssh/id_rsa.pub --query KeyPairId)
       export INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
       aws ec2 create-tags --region "${var.aws_region}" --resources $INSTANCE_ID --tags "Key=KeyPairID,Value=$KEY_PAIR_ID"
+      yum update -y
     EOT
-    /*yum update -y
-      mv "/run/ssh_tmp/id_rsa" "/home/${local.bastion_user}/.ssh/id_rsa"
-      chown -v "${local.bastion_user}:${local.bastion_user}" "/home/${local.bastion_user}/.ssh/id_rsa"
-    EOT*/
   }
 }
 
@@ -77,13 +67,12 @@ resource "aws_key_pair" "bastion" {
   }
 }
 
-/*resource "aws_key_pair" "internal" {
-  key_name   = "tf-puppet-internal"
-  public_key = var.ssh_internal_pub
-  tags = {
-    Name = "TF Puppet Internal Key"
+resource "null_resource" "ensure_no_key" {
+  provisioner "local-exec" {
+    command = "aws ec2 delete-key-pair --key-name tf_puppet-internal"
+    on_failure = continue
   }
-}*/
+}
 
 resource "aws_instance" "bastion" {
   ami                    = data.aws_ami.amazon_linux_2.id
@@ -97,16 +86,41 @@ resource "aws_instance" "bastion" {
   tags = {
     Name = "Bastion"
   }
+  
+  depends_on = [null_resource.ensure_no_key]
+  
+  lifecycle {
+    ignore_changes = [
+      tags["KeyPairID"]
+    ]
+  }
+  
+  # Wait for KeyPairID resource tag before considering this resource complete
+  provisioner "local-exec" {
+    command = <<-EOF
+    #!/bin/bash
+    key_pair_id=""
+    echo "Waiting for KeyPairID"
+    while [[ -z "$key_pair_id" ]] ; do
+      sleep 5
+      key_pair_id=$(aws ec2 describe-tags --region '${var.aws_region}' --filters 'Name=resource-id,Values=${self.id}' 'Name=key,Values=KeyPairID' --output text --query 'Tags[*].Value')
+    done
+    EOF
+  }
+  
+  # On destroy, also remove the key-pair uploaded by the user data script
+  provisioner "local-exec" {
+    when = destroy
+    command = "aws ec2 delete-key-pair --key-name tf_puppet-internal"
+    on_failure = continue
+  }
 }
 
-/*resource "null_resource" "internal_ssh_key" {
 
-}*/
-
-/*resource "aws_instance" "puppet" {
+resource "aws_instance" "puppet" {
   ami                    = data.aws_ami.centos8.id
   instance_type          = "t2.medium"
-  key_name               = aws_key_pair.internal.key_name
+  key_name               = "tf_puppet-internal"
   subnet_id              = aws_subnet.app_host.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
   user_data_base64       = base64encode(templatefile("${path.module}/templates/puppet_user_data.txt", { hostname = "puppet" }))
@@ -114,4 +128,6 @@ resource "aws_instance" "bastion" {
   tags = {
     Name = "Puppet"
   }
-}*/
+  
+  depends_on = [aws_instance.bastion]
+}

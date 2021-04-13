@@ -67,6 +67,9 @@ resource "aws_key_pair" "bastion" {
   }
 }
 
+
+# Delete the key pair if it already exists before launching bastion host.
+# Bastion's user data will import a new key pair
 resource "null_resource" "ensure_no_key" {
   provisioner "local-exec" {
     command = "aws ec2 delete-key-pair --key-name tf_puppet-internal"

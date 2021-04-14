@@ -10,7 +10,7 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table" "app_host" {
+resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   route {
@@ -27,7 +27,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table_association" "app_host" {
-  subnet_id      = aws_subnet.app_host.id
-  route_table_id = aws_route_table.app_host.id
+resource "aws_route_table_association" "private" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.private.id
 }

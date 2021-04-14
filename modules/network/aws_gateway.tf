@@ -16,3 +16,10 @@ resource "aws_nat_gateway" "ngw" {
 
   depends_on = [aws_internet_gateway.igw]
 }
+
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "Internet Gateway"
+  }
+}
